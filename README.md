@@ -17,7 +17,6 @@ This plugin keeps separate history files for each directory while still writing 
 
 - zsh
 - Oh My Zsh
-- `perl`
 - `fzf` for `Ctrl-R` history search integration
 
 The core per-directory history behavior works without `fzf`; only the `Ctrl-R` widget requires it.
@@ -97,4 +96,3 @@ If `fzf` is installed, `Ctrl-R` opens history search for the active history view
 This plugin takes over history file synchronization and disables zsh's automatic `share_history`, `inc_append_history`, and `inc_append_history_time` options after initialization. This avoids mixing global history entries into a local directory history view.
 
 Blank commands are not written to history. Pressing Enter on an empty command line still triggers the next prompt and therefore refreshes the active history view if another terminal has updated it.
-

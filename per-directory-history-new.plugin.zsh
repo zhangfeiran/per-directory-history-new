@@ -7,8 +7,8 @@
 #   - every command is appended to both global and current-directory history
 #   - the visible history view is reloaded at prompt boundaries when its file
 #     changes, so other terminals sync after Enter, including empty Enter
-#   - fzf-history-widget reads the active history file directly instead of the
-#     in-memory $history parameter
+#   - fzf-history-widget syncs the active history file before reading zsh's
+#     in-memory active history list
 
 [[ -z ${HISTORY_BASE:-} ]] && HISTORY_BASE="$HOME/.directory_history"
 [[ -z ${HISTORY_START_WITH_GLOBAL:-} ]] && HISTORY_START_WITH_GLOBAL=false
@@ -183,43 +183,14 @@ function _per-directory-history-change-directory() {
 }
 
 function _per-directory-history-fzf-entries() {
-  local history_file
-
   _per-directory-history-initialize
-  history_file="$(_per-directory-history-active-file)"
-  [[ -r "$history_file" ]] || return
+  _per-directory-history-load-active-history false
 
-  command perl -MMIME::Base64=encode_base64 -e '
-    my @records;
-    my $cmd;
-    my $record_no = 0;
-
-    while (defined(my $line = <>)) {
-      chomp $line;
-      if ($line =~ /^: \d+:\d+;(.*)$/) {
-        my $next_cmd = $1;
-        push @records, [$record_no, $cmd] if defined($cmd) && $cmd =~ /\S/;
-        ++$record_no;
-        $cmd = $next_cmd;
-      } elsif (defined($cmd)) {
-        $cmd .= "\n$line";
-      } elsif ($line =~ /\S/) {
-        ++$record_no;
-        $cmd = $line;
-      }
-    }
-    push @records, [$record_no, $cmd] if defined($cmd) && $cmd =~ /\S/;
-
-    my %seen;
-    for (my $i = $#records; $i >= 0; --$i) {
-      my ($number, $cmd) = @{$records[$i]};
-      next if $seen{$cmd}++;
-      my $pretty = $cmd;
-      $pretty =~ s/\t/    /g;
-      $pretty =~ s/\n/ \\n /g;
-      print $number, "\t", encode_base64($cmd, ""), "\t", $pretty, "\n";
-    }
-  ' "$history_file"
+  if (( $+functions[__fzf_exec_awk] )); then
+    fc -rl 1 | __fzf_exec_awk '{ cmd=$0; sub(/^[ \t]*[0-9]+\**[ \t]+/, "", cmd); if (!seen[cmd]++) print $0 }'
+  else
+    fc -rl 1 | command awk '{ cmd=$0; sub(/^[ \t]*[0-9]+\**[ \t]+/, "", cmd); if (!seen[cmd]++) print $0 }'
+  fi
 }
 
 function _per-directory-history-fzf-cmd() {
@@ -231,7 +202,7 @@ function _per-directory-history-fzf-cmd() {
 }
 
 function _per-directory-history-fzf-defaults() {
-  local opts="-n3..,.. --with-nth=1,3.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER}"
+  local opts="-n2..,.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER}"
 
   if (( $+functions[__fzf_defaults] )); then
     __fzf_defaults "" "$opts"
@@ -241,7 +212,7 @@ function _per-directory-history-fzf-defaults() {
 }
 
 function _per-directory-history-fzf-history-widget() {
-  local selected ret line encoded command
+  local selected ret line trimmed number command
   local -a commands
 
   setopt localoptions noglobsubst noposixbuiltins pipefail no_aliases no_glob no_sh_glob no_ksharrays extendedglob 2>/dev/null
@@ -253,19 +224,38 @@ function _per-directory-history-fzf-history-widget() {
 
   if [[ -n "$selected" ]]; then
     for line in ${(f)selected}; do
-      if [[ "$line" == *$'\t'*$'\t'* ]]; then
-        encoded="${line#*$'\t'}"
-        encoded="${encoded%%$'\t'*}"
-        command="$(print -rn -- "$encoded" | command perl -MMIME::Base64=decode_base64 -ne 'print decode_base64($_)')"
+      trimmed="${line##[[:blank:]]#}"
+      number="${trimmed%%[[:blank:]]*}"
+
+      if [[ "$number" == <-> ]]; then
+        command=''
+
+        if zmodload -F zsh/parameter p:history 2>/dev/null && (( ${+history[$number]} )); then
+          command="${history[$number]}"
+        else
+          zle .push-line
+          zle vi-fetch-history -n "$number"
+          command="$BUFFER"
+          BUFFER=""
+          zle .get-line
+        fi
+
+        if [[ -z "$command" ]]; then
+          command="${trimmed#$number}"
+          command="${command##[[:blank:]]#}"
+          [[ "$command" == \** ]] && command="${command#\*}"
+          command="${command##[[:blank:]]#}"
+        fi
+
         [[ -n "$command" ]] && commands+=("$command")
-      else
-        commands+=("$line")
       fi
     done
 
     if (( ${#commands[@]} )); then
       BUFFER="${(pj:\n:)commands}"
       CURSOR=${#BUFFER}
+    else
+      LBUFFER="$selected"
     fi
   fi
 
