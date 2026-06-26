@@ -192,30 +192,32 @@ function _per-directory-history-fzf-entries() {
   command perl -MMIME::Base64=encode_base64 -e '
     my @records;
     my $cmd;
+    my $record_no = 0;
 
     while (defined(my $line = <>)) {
       chomp $line;
       if ($line =~ /^: \d+:\d+;(.*)$/) {
         my $next_cmd = $1;
-        push @records, $cmd if defined($cmd) && $cmd =~ /\S/;
+        push @records, [$record_no, $cmd] if defined($cmd) && $cmd =~ /\S/;
+        ++$record_no;
         $cmd = $next_cmd;
       } elsif (defined($cmd)) {
         $cmd .= "\n$line";
       } elsif ($line =~ /\S/) {
+        ++$record_no;
         $cmd = $line;
       }
     }
-    push @records, $cmd if defined($cmd) && $cmd =~ /\S/;
+    push @records, [$record_no, $cmd] if defined($cmd) && $cmd =~ /\S/;
 
     my %seen;
-    my $rank = 0;
     for (my $i = $#records; $i >= 0; --$i) {
-      my $cmd = $records[$i];
+      my ($number, $cmd) = @{$records[$i]};
       next if $seen{$cmd}++;
       my $pretty = $cmd;
       $pretty =~ s/\t/    /g;
       $pretty =~ s/\n/ \\n /g;
-      print ++$rank, "\t", encode_base64($cmd, ""), "\t", $pretty, "\n";
+      print $number, "\t", encode_base64($cmd, ""), "\t", $pretty, "\n";
     }
   ' "$history_file"
 }
@@ -229,7 +231,7 @@ function _per-directory-history-fzf-cmd() {
 }
 
 function _per-directory-history-fzf-defaults() {
-  local opts="-n3..,.. --with-nth=3.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER}"
+  local opts="-n3..,.. --with-nth=1,3.. --scheme=history --bind=ctrl-r:toggle-sort,alt-r:toggle-raw --highlight-line --multi ${FZF_CTRL_R_OPTS-} --query=${(qqq)LBUFFER}"
 
   if (( $+functions[__fzf_defaults] )); then
     __fzf_defaults "" "$opts"
