@@ -10,7 +10,7 @@ This plugin keeps separate history files for each directory while still writing 
 - Does not reload the active history view after pressing Enter.
 - Reloads the active history view only through explicit refresh points such as startup, directory changes, mode toggles, and `Ctrl-R` search.
 - Provides a local/global history toggle, compatible with the original `per-directory-history` plugin state variables.
-- Overrides `fzf-history-widget` so `Ctrl-R` reads directly from the active history file instead of zsh's stale in-memory `$history` array.
+- Overrides `fzf-history-widget` so `Ctrl-R` refreshes the active in-memory history before opening search.
 - Does not hook Up/Down keys for synchronization, so history navigation stays responsive.
 
 ## Requirements
@@ -89,7 +89,9 @@ Press `Ctrl-G` by default to toggle the active history view:
 - global mode searches `$HISTFILE`
 - local mode searches the current directory's history file
 
-If `fzf` is installed, `Ctrl-R` opens history search for the active history view. It reads the history file directly, so commands written by another terminal are visible without waiting for zsh's internal history array to catch up.
+Changing directories refreshes the active history view in both modes: global mode reloads `$HISTFILE`, and local mode reloads the new directory's history file.
+
+If `fzf` is installed, `Ctrl-R` opens history search for the active history view. It first refreshes zsh's in-memory history from the active history file, so commands written by another terminal are visible to both `Ctrl-R` search and later Up/Down history navigation.
 
 ## Notes
 

@@ -175,16 +175,10 @@ function _per-directory-history-change-directory() {
   _per-directory-history-initialize
   _per-directory-history-update-directory
   _per-directory-history-ensure-file "$_per_directory_history_directory"
-
-  if [[ "$_per_directory_history_is_global" == false ]]; then
-    _per-directory-history-load-active-history true
-  fi
+  _per-directory-history-load-active-history true
 }
 
 function _per-directory-history-fzf-entries() {
-  _per-directory-history-initialize
-  _per-directory-history-load-active-history false
-
   if (( $+functions[__fzf_exec_awk] )); then
     fc -rl 1 | __fzf_exec_awk '{ cmd=$0; sub(/^[ \t]*[0-9]+\**[ \t]+/, "", cmd); if (!seen[cmd]++) print $0 }'
   else
@@ -215,6 +209,9 @@ function _per-directory-history-fzf-history-widget() {
   local -a commands
 
   setopt localoptions noglobsubst noposixbuiltins pipefail no_aliases no_glob no_sh_glob no_ksharrays extendedglob 2>/dev/null
+
+  _per-directory-history-initialize
+  _per-directory-history-load-active-history false
 
   selected="$(_per-directory-history-fzf-entries |
     FZF_DEFAULT_OPTS="$(_per-directory-history-fzf-defaults)" \
