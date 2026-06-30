@@ -7,8 +7,8 @@ This plugin keeps separate history files for each directory while still writing 
 ## Features
 
 - Saves each command to both global history and the current directory history.
-- Reloads the active history view at prompt boundaries when the backing file changes.
-- Syncs history from other terminals after pressing Enter, including an empty Enter.
+- Does not reload the active history view after pressing Enter.
+- Reloads the active history view only through explicit refresh points such as startup, directory changes, mode toggles, and `Ctrl-R` search.
 - Provides a local/global history toggle, compatible with the original `per-directory-history` plugin state variables.
 - Overrides `fzf-history-widget` so `Ctrl-R` reads directly from the active history file instead of zsh's stale in-memory `$history` array.
 - Does not hook Up/Down keys for synchronization, so history navigation stays responsive.
@@ -93,6 +93,6 @@ If `fzf` is installed, `Ctrl-R` opens history search for the active history view
 
 ## Notes
 
-This plugin takes over history file synchronization and disables zsh's automatic `share_history`, `inc_append_history`, and `inc_append_history_time` options after initialization. This avoids mixing global history entries into a local directory history view.
+This plugin takes over history file writing and explicit reloads, and disables zsh's automatic `share_history`, `inc_append_history`, and `inc_append_history_time` options after initialization. This avoids mixing global history entries into a local directory history view.
 
-Blank commands are not written to history. Pressing Enter on an empty command line still triggers the next prompt and therefore refreshes the active history view if another terminal has updated it.
+Blank commands are not written to history. Pressing Enter does not refresh the active history view, whether the command line is empty or non-empty.

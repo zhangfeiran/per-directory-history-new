@@ -5,8 +5,7 @@
 # This keeps the public surface of oh-my-zsh's per-directory-history plugin
 # while avoiding its fragile active-history juggling:
 #   - every command is appended to both global and current-directory history
-#   - the visible history view is reloaded at prompt boundaries when its file
-#     changes, so other terminals sync after Enter, including empty Enter
+#   - pressing Enter never imports external history into the visible history view
 #   - fzf-history-widget syncs the active history file before reading zsh's
 #     in-memory active history list
 
@@ -276,7 +275,6 @@ function _per-directory-history-install-fzf-history-widget() {
 
 function _per-directory-history-precmd() {
   _per-directory-history-initialize
-  _per-directory-history-load-active-history false
   _per-directory-history-install-fzf-history-widget
 }
 
